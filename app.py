@@ -319,6 +319,7 @@ class SignatureSpotDetector:
 
 @app.post("/process-pdf")
 async def process_pdf_endpoint(file: UploadFile = File(...)):
+    temp_file_path = None
     try:
         # Validate file type
         if not file.filename.lower().endswith('.pdf'):
@@ -326,49 +327,56 @@ async def process_pdf_endpoint(file: UploadFile = File(...)):
 
         # Create a temporary file to store the uploaded PDF
         temp_file_path = f"temp_{file.filename}"
-        try:
-            with open(temp_file_path, "wb") as buffer:
-                content = await file.read()
-                buffer.write(content)
-            
-            # Process the PDF
-            detector = SignatureSpotDetector()
-            pdf_document = fitz.open(temp_file_path)
-            pages_results = []
+        content = await file.read()
+        
+        with open(temp_file_path, "wb") as buffer:
+            buffer.write(content)
+        
+        # Process the PDF
+        detector = SignatureSpotDetector()
+        pdf_document = fitz.open(temp_file_path)
+        total_pages = len(pdf_document)  # Get total pages before processing
+        pages_results = []
 
-            for page_num in range(len(pdf_document)):
-                try:
-                    page = pdf_document[page_num]
-                    spots = detector.find_lines(page)
-                    
-                    pages_results.append({
-                        'page_number': page_num + 1,
-                        'signature_spots': spots
-                    })
-                except Exception as page_error:
-                    print(f"Error processing page {page_num + 1}: {str(page_error)}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Error processing page {page_num + 1}: {str(page_error)}"
-                    )
+        for page_num in range(total_pages):
+            try:
+                page = pdf_document[page_num]
+                spots = detector.find_lines(page)
+                
+                pages_results.append({
+                    'page_number': page_num + 1,
+                    'signature_spots': spots
+                })
+            except Exception as page_error:
+                print(f"Error processing page {page_num + 1}: {str(page_error)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error processing page {page_num + 1}: {str(page_error)}"
+                )
 
-            # Clean up
-            pdf_document.close()
-            
-            return {
-                'status': 'success',
-                'total_pages': len(pdf_document),
-                'pages': pages_results
-            }
-            
-        finally:
-            # Ensure temp file is cleaned up even if there's an error
-            if os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
+        # Create response before closing the document
+        response_data = {
+            'status': 'success',
+            'total_pages': total_pages,
+            'pages': pages_results
+        }
+
+        # Close the document
+        pdf_document.close()
+        
+        return response_data
         
     except Exception as e:
         print(f"Error processing PDF: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
+    
+    finally:
+        # Ensure temp file is cleaned up even if there's an error
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except Exception as e:
+                print(f"Error removing temporary file: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
