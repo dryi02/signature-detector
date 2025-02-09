@@ -18,7 +18,7 @@ app.add_middleware(
         "http://localhost:3000",     # Local development
         "https://signit.vercel.app", # Your Vercel deployment
         "https://signit-git-main.vercel.app",  # Vercel preview deployments
-        "https://signit-*.vercel.app"  # All Vercel preview deployments
+        "https://candor-79ynz2rm7-dryi02s-projects.vercel.app/"
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST"],
