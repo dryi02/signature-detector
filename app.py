@@ -7,8 +7,21 @@ import fitz  # PyMuPDF
 import os
 from datetime import datetime
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Your Next.js development server
+        "https://your-production-domain.com"  # Your production domain
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],  # Specify the methods you need
+    allow_headers=["*"],
+)
 
 @app.get("/")
 async def root():
@@ -307,43 +320,55 @@ class SignatureSpotDetector:
 @app.post("/process-pdf")
 async def process_pdf_endpoint(file: UploadFile = File(...)):
     try:
+        # Validate file type
+        if not file.filename.lower().endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="File must be a PDF")
+
         # Create a temporary file to store the uploaded PDF
         temp_file_path = f"temp_{file.filename}"
-        with open(temp_file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
-        
-        # Process the PDF
-        detector = SignatureSpotDetector()
-        pdf_document = fitz.open(temp_file_path)
-        pages_results = []
+        try:
+            with open(temp_file_path, "wb") as buffer:
+                content = await file.read()
+                buffer.write(content)
+            
+            # Process the PDF
+            detector = SignatureSpotDetector()
+            pdf_document = fitz.open(temp_file_path)
+            pages_results = []
 
-        for page_num in range(len(pdf_document)):
-            try:
-                page = pdf_document[page_num]
-                spots = detector.find_lines(page)
-                
-                pages_results.append({
-                    'page_number': page_num + 1,
-                    'signature_spots': spots
-                })
-            except Exception as page_error:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Error processing page {page_num + 1}: {str(page_error)}"
-                )
+            for page_num in range(len(pdf_document)):
+                try:
+                    page = pdf_document[page_num]
+                    spots = detector.find_lines(page)
+                    
+                    pages_results.append({
+                        'page_number': page_num + 1,
+                        'signature_spots': spots
+                    })
+                except Exception as page_error:
+                    print(f"Error processing page {page_num + 1}: {str(page_error)}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Error processing page {page_num + 1}: {str(page_error)}"
+                    )
 
-        # Clean up
-        pdf_document.close()
-        os.remove(temp_file_path)
-
-        return {
-            'total_pages': len(pdf_document),
-            'pages': pages_results
-        }
+            # Clean up
+            pdf_document.close()
+            
+            return {
+                'status': 'success',
+                'total_pages': len(pdf_document),
+                'pages': pages_results
+            }
+            
+        finally:
+            # Ensure temp file is cleaned up even if there's an error
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error processing PDF: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
