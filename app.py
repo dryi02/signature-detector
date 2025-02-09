@@ -15,11 +15,13 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # Your Next.js development server
-        "https://your-production-domain.com"  # Your production domain
+        "http://localhost:3000",     # Local development
+        "https://signit.vercel.app", # Your Vercel deployment
+        "https://signit-git-main.vercel.app",  # Vercel preview deployments
+        "https://signit-*.vercel.app"  # All Vercel preview deployments
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST"],  # Specify the methods you need
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
