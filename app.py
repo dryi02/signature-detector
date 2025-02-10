@@ -14,17 +14,11 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",     # Local development
-        "https://signit.vercel.app", # Your Vercel deployment
-        "https://signit-git-main.vercel.app",  # Vercel preview deployments
-        "https://candor-79ynz2rm7-dryi02s-projects.vercel.app",
-        "https://candor-pink.vercel.app",
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
-
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=False,  # Must be False for allow_origins=["*"]
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+    expose_headers=["*"]  # Exposes all headers
 )
 
 @app.get("/")
